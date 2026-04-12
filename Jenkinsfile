@@ -21,13 +21,13 @@ pipeline {
         stage('Docker Build') {
             steps {
                 echo 'Building Docker image...'
-                sh 'docker build -t sakinakayya18/fare-saver-app:latest .'
+                sh '/usr/local/bin/docker build -t sakinakayya18/fare-saver-app:latest .'
             }
         }
         stage('Docker Push') {
             steps {
                 echo 'Pushing to Docker Hub...'
-                sh 'docker push sakinakayya18/fare-saver-app:latest'
+                sh '/usr/local/bin/docker push sakinakayya18/fare-saver-app:latest'
             }
         }
         stage('Deploy') {
