@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FareSaver - Search Results</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="logo" onclick="window.location.href='index.html'" style="cursor:pointer">✈️ <span class="fare">Fare</span><span class="saver">Saver</span></div>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="search.html">Search</a>
+      <a href="dashboard.html">Dashboard</a>
+    </div>
+    <div class="nav-right">
+      <span class="wishlist-icon" onclick="window.location.href='dashboard.html'">♡</span>
+      <button class="login-btn" id="authBtn" onclick="openAuth()">Login</button>
+      <div class="user-info" style="display:none">
+        <span id="userName"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="results-container">
+    <div class="results-header">
+      <span onclick="history.back()" style="cursor:pointer">← </span>
+      <div>
+        <h2 id="routeTitle">Delhi → Goa</h2>
+        <p id="routeSubtitle">Showing cheapest options</p>
+      </div>
+    </div>
+
+    <div class="travel-options-section">
+      <h3>📍 Travel Options</h3>
+      <div class="travel-options" id="travelOptions"></div>
+    </div>
+
+    <div class="results-body">
+      <div class="filters-panel">
+        <h3>▽ Filters</h3>
+        <div class="filter-group">
+          <label>PRICE RANGE</label>
+          <div class="price-range">
+            <input type="number" id="minPrice" placeholder="₹200" min="0"/>
+            <span>—</span>
+            <input type="number" id="maxPrice" placeholder="₹5000" min="0"/>
+          </div>
+        </div>
+        <div class="filter-group">
+          <label>RATING</label>
+          <div class="rating-btns">
+            <button class="rating-btn" onclick="setRating(3)">3+</button>
+            <button class="rating-btn active" onclick="setRating(4)">4+</button>
+            <button class="rating-btn" onclick="setRating(4.5)">4.5+</button>
+          </div>
+        </div>
+        <div class="filter-group">
+          <label>DISTANCE FROM CENTER</label>
+          <div class="distance-btns">
+            <button class="dist-btn active" onclick="setDistance(2)">＜2km</button>
+            <button class="dist-btn" onclick="setDistance(5)">2–5km</button>
+            <button class="dist-btn" onclick="setDistance(100)">5km+</button>
+          </div>
+        </div>
+        <button class="apply-btn" onclick="applyFilters()">Apply Filters</button>
+        <button class="reset-btn" onclick="resetFilters()">Reset</button>
+      </div>
+
+      <div class="hotels-panel">
+        <div class="hotels-header">
+          <h3>🏨 Budget Hotels <span style="font-weight:400;font-size:14px">(sorted by price)</span></h3>
+          <select id="sortSelect" onchange="applyFilters()">
+            <option value="price_asc">Price: Low to High</option>
+            <option value="price_desc">Price: High to Low</option>
+            <option value="rating">Rating</option>
+          </select>
+        </div>
+        <div id="hotelsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-modal" id="authModal" style="display:none">
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeAuth()">✕</button>
+      <div class="auth-tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+        <button class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
+      </div>
+      <div id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Email"/>
+        <input type="password" id="loginPassword" placeholder="Password"/>
+        <button class="submit-btn" onclick="handleLogin()">Login</button>
+        <p class="error-msg" id="loginError"></p>
+      </div>
+      <div id="signupForm" style="display:none">
+        <input type="text" id="signupName" placeholder="Full Name"/>
+        <input type="email" id="signupEmail" placeholder="Email"/>
+        <input type="password" id="signupPassword" placeholder="Password"/>
+        <button class="submit-btn" onclick="handleSignup()">Sign Up</button>
+        <p class="error-msg" id="signupError"></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const from = params.get("from") || "Delhi";
+    const to = params.get("to") || "Goa";
+    const date = params.get("date") || "";
+    let allHotels = [];
+    let selectedRating = 0;
+    let selectedDistance = 100;
+
+    document.getElementById("routeTitle").textContent = `${from} → ${to}`;
+    document.getElementById("routeSubtitle").textContent = date ? `Travel date: ${date}` : "Showing cheapest options";
+
+    checkAuth();
+    loadResults();
+
+    async function loadResults() {
+      const res = await fetch(`/api/search/results?from=${from}&to=${to}&date=${date}`);
+      const data = await res.json();
+      allHotels = data.hotels;
+      renderTravelOptions(data.travelOptions);
+      renderHotels(allHotels);
+    }
+
+    function renderTravelOptions(options) {
+      const cheapest = options[0];
+      document.getElementById("travelOptions").innerHTML = options.map((opt, i) => `
+        <div class="travel-card ${i === 0 ? 'cheapest' : ''}">
+          <span class="travel-emoji">${opt.type === 'Train' ? '🚂' : opt.type === 'Bus' ? '🚌' : '✈️'}</span>
+          <div class="travel-info">
+            <h4>${opt.type} (${opt.class})</h4>
+            <p>${opt.duration} • ${opt.name}</p>
+          </div>
+          <div class="travel-price">
+            <span class="price">₹${opt.price}</span>
+            ${i === 0 ? '<span class="cheapest-badge">CHEAPEST</span>' : ''}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderHotels(hotels) {
+      if (hotels.length === 0) {
+        document.getElementById("hotelsList").innerHTML = '<p style="padding:20px">No hotels found with these filters.</p>';
+        return;
+      }
+      document.getElementById("hotelsList").innerHTML = hotels.map(hotel => `
+        <div class="hotel-card">
+          <div class="hotel-image">${hotel.image}</div>
+          <div class="hotel-info">
+            <h4>${hotel.name}</h4>
+            <p class="hotel-location">📍 ${hotel.location}</p>
+            <div class="hotel-meta">
+              <span class="rating-badge">★ ${hotel.rating}</span>
+              <span class="reviews">${hotel.reviews} reviews</span>
+              <span class="distance">• ${hotel.distance} km from center</span>
+            </div>
+            <div class="amenities">
+              ${hotel.amenities.map(a => `<span class="amenity">${a}</span>`).join("")}
+            </div>
+            <div class="hotel-footer">
+              <span class="hotel-price">₹${hotel.price}<span style="font-size:13px;font-weight:400">/night</span></span>
+              <div>
+                <button class="wishlist-btn" onclick="toggleWishlist(${JSON.stringify(hotel).replace(/"/g, '&quot;')})">♡</button>
+                <button class="view-btn" onclick="viewDetails(${JSON.stringify(hotel).replace(/"/g, '&quot;')})">View Details</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function setRating(val) {
+      selectedRating = val;
+      document.querySelectorAll(".rating-btn").forEach(b => b.classList.remove("active"));
+      event.target.classList.add("active");
+    }
+
+    function setDistance(val) {
+      selectedDistance = val;
+      document.querySelectorAll(".dist-btn").forEach(b => b.classList.remove("active"));
+      event.target.classList.add("active");
+    }
+
+    function applyFilters() {
+      const minPrice = parseInt(document.getElementById("minPrice").value) || 0;
+      const maxPrice = parseInt(document.getElementById("maxPrice").value) || 99999;
+      const sort = document.getElementById("sortSelect").value;
+      let filtered = allHotels.filter(h =>
+        h.price >= minPrice &&
+        h.price <= maxPrice &&
+        h.rating >= selectedRating &&
+        h.distance <= selectedDistance
+      );
+      if (sort === "price_asc") filtered.sort((a, b) => a.price - b.price);
+      else if (sort === "price_desc") filtered.sort((a, b) => b.price - a.price);
+      else if (sort === "rating") filtered.sort((a, b) => b.rating - a.rating);
+      renderHotels(filtered);
+    }
+
+    function resetFilters() {
+      document.getElementById("minPrice").value = "";
+      document.getElementById("maxPrice").value = "";
+      selectedRating = 0;
+      selectedDistance = 100;
+      document.querySelectorAll(".rating-btn, .dist-btn").forEach(b => b.classList.remove("active"));
+      renderHotels(allHotels);
+    }
+
+    function viewDetails(hotel) {
+      const user = JSON.parse(localStorage.getItem("user") || "null");
+      if (user) {
+        fetch("/api/auth/recently-viewed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id, hotel })
+        });
+      }
+      const q = new URLSearchParams({
+        city: to,
+        hotelId: hotel.id,
+        hotelName: hotel.name,
+        price: hotel.price,
+        rating: hotel.rating,
+        distance: hotel.distance,
+        amenities: hotel.amenities.join(","),
+        image: hotel.image,
+        location: hotel.location,
+        reviews: hotel.reviews
+      });
+      window.location.href = `hotel-details.html?${q}`;
+    }
+
+    function toggleWishlist(hotel) {
+      const user = JSON.parse(localStorage.getItem("user") || "null");
+      if (!user) return openAuth();
+      fetch("/api/auth/wishlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, hotel })
+      }).then(() => alert("Wishlist updated!"));
+    }
+  </script>
+</body>
+</html>

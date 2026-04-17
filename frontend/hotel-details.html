@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FareSaver - Hotel Details</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="logo" onclick="window.location.href='index.html'" style="cursor:pointer">✈️ <span class="fare">Fare</span><span class="saver">Saver</span></div>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="search.html">Search</a>
+      <a href="dashboard.html">Dashboard</a>
+    </div>
+    <div class="nav-right">
+      <span class="wishlist-icon" onclick="window.location.href='dashboard.html'">♡</span>
+      <button class="login-btn" id="authBtn" onclick="openAuth()">Login</button>
+      <div class="user-info" style="display:none">
+        <span id="userName"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="details-container">
+    <p class="back-link" onclick="history.back()">← Back to results</p>
+
+    <div class="details-body">
+      <div class="details-left">
+        <div class="hotel-image-large" id="hotelImageLarge"></div>
+        <div class="hotel-details-info">
+          <div class="hotel-title-row">
+            <div>
+              <h2 id="detailName"></h2>
+              <p id="detailLocation"></p>
+              <div class="detail-meta">
+                <span class="rating-badge" id="detailRating"></span>
+                <span id="detailReviews"></span>
+                <span id="detailDistance"></span>
+              </div>
+            </div>
+            <div class="detail-price-tag">
+              <span id="detailPrice"></span>
+              <small>per night</small>
+            </div>
+          </div>
+
+          <div class="amenities-section">
+            <h3>Amenities</h3>
+            <div class="amenities-list" id="amenitiesList"></div>
+          </div>
+
+          <div class="nearby-section">
+            <h3>📍 Explore Nearby with Cost</h3>
+            <p class="subtitle">Estimated travel costs from this hotel to popular spots</p>
+            <div id="nearbyPlaces"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="details-right">
+        <div class="booking-card">
+          <h3>Book This Hotel</h3>
+          <div class="booking-field">
+            <label>CHECK-IN</label>
+            <input type="date" id="checkIn" onchange="calculateCost()"/>
+          </div>
+          <div class="booking-field">
+            <label>CHECK-OUT</label>
+            <input type="date" id="checkOut" onchange="calculateCost()"/>
+          </div>
+          <div class="booking-field">
+            <label>GUESTS</label>
+            <select id="guests">
+              <option>1 Guest</option>
+              <option>2 Guests</option>
+              <option>3 Guests</option>
+              <option>4 Guests</option>
+            </select>
+          </div>
+          <div class="cost-breakdown" id="costBreakdown"></div>
+          <button class="book-btn" onclick="bookNow()">Book Now</button>
+          <button class="save-btn" onclick="saveToWishlist()">♡ Save to Wishlist</button>
+        </div>
+
+        <div class="trip-cost-card">
+          <h3>🧮 Total Trip Cost</h3>
+          <div id="tripCostBreakdown"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-modal" id="authModal" style="display:none">
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeAuth()">✕</button>
+      <div class="auth-tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+        <button class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
+      </div>
+      <div id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Email"/>
+        <input type="password" id="loginPassword" placeholder="Password"/>
+        <button class="submit-btn" onclick="handleLogin()">Login</button>
+        <p class="error-msg" id="loginError"></p>
+      </div>
+      <div id="signupForm" style="display:none">
+        <input type="text" id="signupName" placeholder="Full Name"/>
+        <input type="email" id="signupEmail" placeholder="Email"/>
+        <input type="password" id="signupPassword" placeholder="Password"/>
+        <button class="submit-btn" onclick="handleSignup()">Sign Up</button>
+        <p class="error-msg" id="signupError"></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const hotel = {
+      id: params.get("hotelId"),
+      name: params.get("hotelName"),
+      city: params.get("city"),
+      price: parseInt(params.get("price")),
+      rating: parseFloat(params.get("rating")),
+      distance: parseFloat(params.get("distance")),
+      amenities: params.get("amenities") ? params.get("amenities").split(",") : [],
+      image: params.get("image"),
+      location: params.get("location"),
+      reviews: params.get("reviews")
+    };
+
+    let touristPlaces = [];
+    let nights = 1;
+
+    checkAuth();
+    loadHotelDetails();
+
+    document.getElementById("detailName").textContent = hotel.name;
+    document.getElementById("detailLocation").textContent = "📍 " + hotel.location;
+    document.getElementById("detailRating").textContent = "★ " + hotel.rating;
+    document.getElementById("detailReviews").textContent = hotel.reviews + " reviews";
+    document.getElementById("detailDistance").textContent = "• " + hotel.distance + " km from center";
+    document.getElementById("detailPrice").textContent = "₹" + hotel.price;
+    document.getElementById("hotelImageLarge").textContent = hotel.image;
+
+    document.getElementById("amenitiesList").innerHTML = hotel.amenities.map(a =>
+      `<span class="amenity-tag">${a}</span>`
+    ).join("");
+
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("checkIn").value = today;
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+    document.getElementById("checkOut").value = tomorrow;
+    calculateCost();
+
+    async function loadHotelDetails() {
+      const res = await fetch(`/api/hotels/details?city=${hotel.city}&hotelId=${hotel.id}&price=${hotel.price}&nights=${nights}`);
+      const data = await res.json();
+      touristPlaces = data.touristPlaces;
+      renderNearbyPlaces(touristPlaces);
+      renderTripCost(data.tripCost);
+    }
+
+    function renderNearbyPlaces(places) {
+      document.getElementById("nearbyPlaces").innerHTML = places.map(place => `
+        <div class="nearby-card">
+          <div class="nearby-header">
+            <span>${place.emoji} <strong>${place.name}</strong></span>
+            <span class="nearby-distance">${place.distance} km • ${place.time}</span>
+          </div>
+          <div class="transport-costs">
+            <span class="transport-cost auto">🛺 ₹${place.cost.auto.min}–₹${place.cost.auto.max} (Auto)</span>
+            <span class="transport-cost cab">🚕 ₹${place.cost.cab.min}–₹${place.cost.cab.max} (Cab)</span>
+            <span class="transport-cost bus">🚌 ₹${place.cost.bus.min}–₹${place.cost.bus.max} (Bus)</span>
+          </div>
+          <p class="estimate-note">* Estimated cost — may vary</p>
+        </div>
+      `).join("");
+    }
+
+    function renderTripCost(tripCost) {
+      document.getElementById("tripCostBreakdown").innerHTML = `
+        <div class="trip-cost-row">
+          <span>Hotel (${tripCost.nights} night${tripCost.nights > 1 ? 's' : ''})</span>
+          <span>₹${tripCost.hotelCost}</span>
+        </div>
+        <div class="trip-cost-row">
+          <span>Local Travel (est.)</span>
+          <span>₹${tripCost.localTravelCost}</span>
+        </div>
+        <div class="trip-cost-total">
+          <span>Total Trip Cost</span>
+          <span class="total-amount">₹${tripCost.totalTripCost}</span>
+        </div>
+      `;
+    }
+
+    function calculateCost() {
+      const checkIn = new Date(document.getElementById("checkIn").value);
+      const checkOut = new Date(document.getElementById("checkOut").value);
+      nights = Math.max(1, Math.round((checkOut - checkIn) / 86400000));
+      const hotelCost = hotel.price * nights;
+      const taxes = Math.round(hotelCost * 0.12);
+      const total = hotelCost + taxes;
+      document.getElementById("costBreakdown").innerHTML = `
+        <div class="cost-row"><span>${nights} night × ₹${hotel.price}</span><span>₹${hotelCost}</span></div>
+        <div class="cost-row"><span>Taxes & fees</span><span>₹${taxes}</span></div>
+        <div class="cost-row total"><span><strong>Total</strong></span><span class="blue-price"><strong>₹${total}</strong></span></div>
+      `;
+      loadHotelDetails();
+    }
+
+    function bookNow() {
+      alert(`Booking confirmed for ${hotel.name}!\n${nights} night(s)\nTotal: ₹${hotel.price * nights}`);
+    }
+
+    function saveToWishlist() {
+      const user = JSON.parse(localStorage.getItem("user") || "null");
+      if (!user) return openAuth();
+      fetch("/api/auth/wishlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, hotel })
+      }).then(() => alert("Saved to wishlist!"));
+    }
+  </script>
+</body>
+</html>

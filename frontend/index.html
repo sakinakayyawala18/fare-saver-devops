@@ -1,16 +1,148 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Fare Saver</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FareSaver - Travel Smart, Save More</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Fare Saver - Travel Planner</h1>
-    <h3>Feature added by Bhavesh</h3>
-    <h3>UI improved by Aditya</h3>
-    <button onclick="getFare()">Check Fare</button>
 
-    <p id="result"></p>
+  <nav class="navbar">
+    <div class="logo">✈️ <span class="fare">Fare</span><span class="saver">Saver</span></div>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="search.html">Search</a>
+      <a href="dashboard.html">Dashboard</a>
+    </div>
+    <div class="nav-right">
+      <span class="wishlist-icon" onclick="window.location.href='dashboard.html'">♡</span>
+      <button class="login-btn" onclick="openAuth()">Login</button>
+      <div class="user-info" style="display:none">
+        <span id="userName"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </nav>
 
-    <script src="script.js"></script>
+  <section class="hero">
+    <div class="hero-badge">● Trusted by 50,000+ students across India</div>
+    <h1>Travel Smart, Save More</h1>
+    <p>India's #1 budget travel platform for students</p>
+    <div class="search-box">
+      <div class="search-field">
+        <label>FROM</label>
+        <input type="text" id="fromCity" placeholder="Enter city" list="cityList"/>
+      </div>
+      <div class="search-field">
+        <label>TO</label>
+        <input type="text" id="toCity" placeholder="Enter city" list="cityList"/>
+      </div>
+      <div class="search-field">
+        <label>DATE</label>
+        <input type="date" id="travelDate"/>
+      </div>
+      <button class="search-btn" onclick="handleSearch()">🔍 Search</button>
+    </div>
+    <datalist id="cityList"></datalist>
+  </section>
+
+  <section class="popular-section">
+    <h2>Popular Student Destinations</h2>
+    <p class="subtitle">Trending spots that won't break the bank</p>
+    <div class="popular-grid" id="popularGrid"></div>
+  </section>
+
+  <section class="deals-section">
+    <h2>🔥 Budget Travel Deals</h2>
+    <p class="subtitle">Limited-time offers for student travelers</p>
+    <div class="deals-grid" id="dealsGrid"></div>
+  </section>
+
+  <div class="auth-modal" id="authModal" style="display:none">
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeAuth()">✕</button>
+      <div class="auth-tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+        <button class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
+      </div>
+      <div id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Email"/>
+        <input type="password" id="loginPassword" placeholder="Password"/>
+        <button class="submit-btn" onclick="handleLogin()">Login</button>
+        <p class="error-msg" id="loginError"></p>
+      </div>
+      <div id="signupForm" style="display:none">
+        <input type="text" id="signupName" placeholder="Full Name"/>
+        <input type="email" id="signupEmail" placeholder="Email"/>
+        <input type="password" id="signupPassword" placeholder="Password"/>
+        <button class="submit-btn" onclick="handleSignup()">Sign Up</button>
+        <p class="error-msg" id="signupError"></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    loadCities();
+    loadPopular();
+    loadDeals();
+    checkAuth();
+
+    function handleSearch() {
+      const from = document.getElementById("fromCity").value;
+      const to = document.getElementById("toCity").value;
+      const date = document.getElementById("travelDate").value;
+      if (!from || !to) return alert("Please enter From and To cities!");
+      window.location.href = `search.html?from=${from}&to=${to}&date=${date}`;
+    }
+
+    async function loadPopular() {
+      const res = await fetch("/api/hotels/popular");
+      const data = await res.json();
+      const grid = document.getElementById("popularGrid");
+      const colors = ["#e8754a", "#3a8fa0", "#c9a84c", "#2e9e6e", "#7b52ab"];
+      grid.innerHTML = data.popular.map((p, i) => `
+        <div class="popular-card" style="background:${colors[i]}" onclick="goToSearch('Delhi','${p.city}')">
+          <div class="price-badge">From ₹${p.minPrice}</div>
+          <div class="card-bottom">
+            <span class="card-emoji">${p.emoji}</span>
+            <h3>${p.city}</h3>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function loadDeals() {
+      const deals = [
+        { from: "Delhi", to: "Goa", mode: "Train", name: "Sleeper Class • 26h", price: 899, original: 1450, off: 38, tag: "Limited Seats", tagColor: "red", emoji: "🚂" },
+        { from: "Mumbai", to: "Goa", mode: "Bus", name: "AC Sleeper • 10h", price: 599, original: 999, off: 40, tag: "Student Special", tagColor: "blue", emoji: "🚌" },
+        { from: "Bangalore", to: "Jaipur", mode: "Flight", name: "IndiGo • 2h 30m", price: 2499, original: 4200, off: 41, tag: "Selling Fast", tagColor: "orange", emoji: "✈️" }
+      ];
+      document.getElementById("dealsGrid").innerHTML = deals.map(d => `
+        <div class="deal-card" onclick="goToSearch('${d.from}','${d.to}')">
+          <div class="deal-left">
+            <span class="deal-emoji">${d.emoji}</span>
+            <div>
+              <h4>${d.from} → ${d.to} by ${d.mode}</h4>
+              <p>${d.name}</p>
+              <div class="deal-tags">
+                <span class="off-badge">${d.off}% OFF</span>
+                <span class="tag-badge ${d.tagColor}">${d.tag}</span>
+              </div>
+            </div>
+          </div>
+          <div class="deal-right">
+            <span class="deal-price">₹${d.price}</span>
+            <span class="deal-original">₹${d.original}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function goToSearch(from, to) {
+      window.location.href = `search.html?from=${from}&to=${to}`;
+    }
+  </script>
 </body>
 </html>
